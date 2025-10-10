@@ -1,1 +1,0 @@
-# simvova-server
