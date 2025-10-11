@@ -24,4 +24,21 @@ app.get("/", (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+// صفحة رئيسية بسيطة للـ API
+app.get("/", (req, res) => {
+  res.send(`
+    <div style="font-family: Arial; text-align: center; padding: 40px;">
+      <h1>🚀 Simvova API Server is Running</h1>
+      <p>Everything looks good!<br>
+      You can now connect this backend to your <strong>Google Studio</strong> app.</p>
+      <hr>
+      <p>Available endpoints:</p>
+      <ul style="list-style:none;">
+        <li>➡️ /api/services — Get available services</li>
+        <li>➡️ /api/orders — Manage orders (coming soon)</li>
+        <li>➡️ /api/wallet — Wallet system (coming soon)</li>
+      </ul>
+    </div>
+  `);
+});
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
