@@ -25,17 +25,23 @@ router.get("/", async (req, res) => {
 
     const data = await response.json();
 
-    // تعديل الأسعار وضبط العملة بالدولار
-    // وتحويل services من Object إلى Array لتجنب خطأ Google Studio
-    const servicesArray = Object.keys(data.services || {}).map((countryKey) => {
-      const countryServices = data.services[countryKey];
-      
-      // تعديل كل خدمة داخل كل مشغل
+    // تحقق من أن data.services موجودة وأنها كائن
+    const servicesObject = data.services && typeof data.services === "object" ? data.services : {};
+
+    // تحويل services من Object إلى Array مع حماية ضد الحقول المفقودة
+    const servicesArray = Object.keys(servicesObject).map((countryKey) => {
+      const countryServices = servicesObject[countryKey] || {};
+
+      // تعديل كل خدمة داخل كل مشغل مع حماية ضد القيم الفارغة
       for (const operator in countryServices) {
-        const item = countryServices[operator];
+        const item = countryServices[operator] || {};
         const originalPrice = parseFloat(item.cost || 0);
         item.cost = (originalPrice * PROFIT_MULTIPLIER).toFixed(2);
         item.currency = "USD";
+
+        // حماية إضافية لأي حقل ناقص
+        item.name = item.name || "Unknown";
+        item.creation_date = item.creation_date || "1970-01-01T00:00:00Z";
       }
 
       return {
