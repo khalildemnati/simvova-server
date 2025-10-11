@@ -1,25 +1,36 @@
-// routes/auth.js
 import express from "express";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
+
 const router = express.Router();
 
-// مسار تسجيل الدخول (تجريبي)
-router.post("/login", (req, res) => {
-  console.log("Login request received:", req.body);
-  res.json({
-    success: true,
-    message: "Login simulation successful!",
-    user: { id: 1, name: "Test User", email: req.body.email || "test@example.com" }
-  });
+router.post("/register", async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+    const hashed = await bcrypt.hash(password, 10);
+    const user = new User({ username, email, password: hashed });
+    await user.save();
+    res.json({ success: true, message: "User registered successfully" });
+  } catch (err) {
+    res.status(400).json({ error: "Registration failed", details: err.message });
+  }
 });
 
-// مسار إنشاء حساب جديد (تجريبي)
-router.post("/register", (req, res) => {
-  console.log("Register request received:", req.body);
-  res.json({
-    success: true,
-    message: "Register simulation successful!",
-    newUser: { id: 2, name: req.body.name || "New User", email: req.body.email || "new@example.com" }
-  });
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(401).json({ error: "Invalid credentials" });
+
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    res.json({ success: true, token, user });
+  } catch (err) {
+    res.status(500).json({ error: "Login failed", details: err.message });
+  }
 });
 
 export default router;
