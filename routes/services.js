@@ -31,7 +31,19 @@ router.get("/", async (req, res) => {
       }
     }
 
-    res.json({ success: true, currency: "USD", profitMultiplier: PROFIT_MULTIPLIER, services: data });
+    // flatten into array for front-end
+const flat = [];
+for (const [serviceKey, countryObj] of Object.entries(data)) {
+  for (const [countryCode, details] of Object.entries(countryObj)) {
+    flat.push({
+      service: serviceKey,
+      country: countryCode,
+      cost: details.cost,
+      currency: details.currency
+    });
+  }
+}
+res.json(flat);
   } catch (err) {
     console.error("Error fetching services:", err);
     res.status(500).json({ error: "Failed to fetch services." });
