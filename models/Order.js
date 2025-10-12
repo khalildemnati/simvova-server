@@ -1,11 +1,15 @@
 import mongoose from "mongoose";
 
-const orderSchema = new mongoose.Schema({
+const OrderSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  providerResponse: { type: Object },
+  country: String,
   service: String,
-  cost: Number,
-  status: { type: String, default: "pending" },
+  operator: String,
+  providerPrice: Number,
+  sellPrice: Number,
+  status: { type: String, default: "pending" }, // pending, success, failed
   createdAt: { type: Date, default: Date.now }
 });
 
-export default mongoose.model("Order", orderSchema);
+export default mongoose.model("Order", OrderSchema);
