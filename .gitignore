@@ -1,0 +1,11 @@
+# Dependencies
+/node_modules
+
+# Configuration files
+.env
+.DS_Store # ملفات خاصة بأنظمة التشغيل (macOS)
+*.log     # ملفات السجل العامة مثل npm-debug.log
+
+# Build output
+/dist
+/build
