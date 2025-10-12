@@ -6,31 +6,29 @@ dotenv.config();
 
 const router = express.Router();
 
-const BASE_URL = "https://5sim.net/v1/guest"; // يمكنك تغييره إلى /v1/user لو أردت تفاصيل أدق
+const BASE_URL = "https://5sim.net/v1/user"; // ✅ endpoint الصحيح
 const API_KEY = process.env.FIVESIM_API_KEY;
 
-// helper function to convert rubles to USD + add 200% profit
+// تحويل السعر من روبل إلى دولار مع ربح 200%
 function convertPrice(rubPrice) {
-  const RUB_TO_USD = 100; // تقريباً 100 روبل = 1 دولار
+  const RUB_TO_USD = 100; // 100 روبل ≈ 1 دولار
   const baseUSD = rubPrice / RUB_TO_USD;
-  const finalPrice = baseUSD * 3; // السعر الأصلي + 200% ربح
+  const finalPrice = baseUSD * 3; // 200% ربح
   return Number(finalPrice.toFixed(2));
 }
 
-// GET all services
 router.get("/", async (req, res) => {
   try {
-    const response = await axios.get(`${BASE_URL}/prices?country=any`, {
+    const response = await axios.get(`${BASE_URL}/prices`, {
       headers: { Authorization: `Bearer ${API_KEY}` },
     });
 
     const data = response.data;
     const services = [];
 
-    // convert data to array
     for (const country in data) {
       for (const service in data[country]) {
-        const info = data[country][service][0]; // first entry
+        const info = data[country][service][0];
         const costRub = info?.cost || 0;
         const costUsd = convertPrice(costRub);
 
@@ -43,9 +41,9 @@ router.get("/", async (req, res) => {
       }
     }
 
-    res.json(services);
+    res.json({ success: true, services });
   } catch (error) {
-    console.error("❌ Failed to fetch from 5SIM API:", error.message);
+    console.error("❌ 5SIM API Error:", error.response?.data || error.message);
     res.status(500).json({ error: "Failed to fetch from 5SIM API" });
   }
 });
