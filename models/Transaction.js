@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
 
-const transactionSchema = new mongoose.Schema({
+const TransactionSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  type: String, // deposit / purchase
+  type: { type: String }, // deposit / withdraw / purchase / refund
   amount: Number,
-  currency: { type: String, default: "USD" },
+  meta: Object,
   createdAt: { type: Date, default: Date.now }
 });
 
-export default mongoose.model("Transaction", transactionSchema);
+export default mongoose.model("Transaction", TransactionSchema);
