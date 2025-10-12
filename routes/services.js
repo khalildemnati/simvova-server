@@ -1,69 +1,52 @@
 import express from "express";
-import fetch from "node-fetch";
+import axios from "axios";
 import dotenv from "dotenv";
 
 dotenv.config();
+
 const router = express.Router();
 
-const FIVESIM_API_KEY = process.env.FIVESIM_API_KEY;
-const PROFIT_MULTIPLIER = 3; // 200% profit
-const BASE_URL = "https://5sim.net/v1/guest";
-const EXCHANGE_API = "https://api.exchangerate-api.com/v4/latest/RUB";
+const BASE_URL = "https://5sim.net/v1/guest"; // يمكنك تغييره إلى /v1/user لو أردت تفاصيل أدق
+const API_KEY = process.env.FIVESIM_API_KEY;
 
-// 🪙 Get RUB to USD rate once at startup (you can refresh it later if needed)
-let rubToUsdRate = 0;
-async function fetchExchangeRate() {
-  try {
-    const res = await fetch(EXCHANGE_API);
-    const data = await res.json();
-    rubToUsdRate = data.rates.USD;
-    console.log(`💱 1 RUB = ${rubToUsdRate} USD`);
-  } catch (err) {
-    console.error("⚠️ Failed to fetch exchange rate:", err);
-    rubToUsdRate = 0.011; // fallback default
-  }
+// helper function to convert rubles to USD + add 200% profit
+function convertPrice(rubPrice) {
+  const RUB_TO_USD = 100; // تقريباً 100 روبل = 1 دولار
+  const baseUSD = rubPrice / RUB_TO_USD;
+  const finalPrice = baseUSD * 3; // السعر الأصلي + 200% ربح
+  return Number(finalPrice.toFixed(2));
 }
-fetchExchangeRate();
 
-// 🧩 Fetch services from 5SIM and convert prices
+// GET all services
 router.get("/", async (req, res) => {
   try {
-    // Get services from 5SIM API
-    const response = await fetch(`${BASE_URL}/products`, {
-      headers: { Authorization: `Bearer ${FIVESIM_API_KEY}` },
+    const response = await axios.get(`${BASE_URL}/prices?country=any`, {
+      headers: { Authorization: `Bearer ${API_KEY}` },
     });
 
-    if (!response.ok) {
-      const text = await response.text();
-      console.error("5SIM API Error:", text);
-      return res.status(response.status).json({ error: "Failed to fetch from 5SIM API" });
-    }
+    const data = response.data;
+    const services = [];
 
-    const data = await response.json();
-    const results = [];
-
-    // Convert to your pricing structure
+    // convert data to array
     for (const country in data) {
       for (const service in data[country]) {
-        const originalCostRUB = data[country][service];
-        if (!originalCostRUB || isNaN(originalCostRUB)) continue;
+        const info = data[country][service][0]; // first entry
+        const costRub = info?.cost || 0;
+        const costUsd = convertPrice(costRub);
 
-        const costUSD = originalCostRUB * rubToUsdRate;
-        const finalPrice = (costUSD * PROFIT_MULTIPLIER).toFixed(3);
-
-        results.push({
-          service,
+        services.push({
           country,
-          cost: parseFloat(finalPrice),
+          service,
+          cost: costUsd,
           currency: "USD",
         });
       }
     }
 
-    res.json(results);
+    res.json(services);
   } catch (error) {
-    console.error("🔥 Error fetching services:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error("❌ Failed to fetch from 5SIM API:", error.message);
+    res.status(500).json({ error: "Failed to fetch from 5SIM API" });
   }
 });
 
