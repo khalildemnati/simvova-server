@@ -1,17 +1,14 @@
 {
-  "name": "5sim-reseller-proxy",
+  "name": "simvova-server",
   "version": "1.0.0",
-  "description": "A proxy server for 5sim.net with 200% price markup.",
-  "main": "server.js",
+  "type": "module",
+  "main": "Server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node Server.js"
   },
   "dependencies": {
-    "axios": "^1.6.8",
+    "express": "^4.19.2",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2"
-  },
-  "author": "",
-  "license": "ISC"
+    "dotenv": "^16.4.5"
+  }
 }
