@@ -1,53 +1,36 @@
-import express from "express";
-import fetch from "node-fetch";
-const router = express.Router();
-const API_KEY = process.env.FIVESIM_API_KEY;
-const PROFIT_MULTIPLIER = parseFloat(process.env.PROFIT_MULTIPLIER || "3");
+import axios from "axios";
 
-router.get("/", async (req, res) => {
+const API_KEY = process.env.FIVESIM_API_KEY; // مفتاح API الخاص بـ 5SIM
+const BASE_URL = "https://5sim.net/v1";
+
+export async function getServices() {
   try {
-    const url = "https://5sim.net/v1/guest/prices"; // fetch general prices
-    const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${API_KEY}`, Accept: "application/json" }
+    const response = await axios.get(`${BASE_URL}/guest/products`, {
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+      },
     });
 
-    // if provider returns text or error, handle it
-    if (!response.ok) {
-      const txt = await response.text();
-      console.error("5SIM prices fetch error:", txt);
-      return res.status(502).json({ error: "Provider error", details: txt });
-    }
+    const data = response.data;
 
-    const data = await response.json();
-
-    // multiply prices and force currency USD
-    for (const serviceKey of Object.keys(data)) {
-      const countryObj = data[serviceKey];
-      for (const countryCode of Object.keys(countryObj)) {
-        const item = countryObj[countryCode];
-        const original = parseFloat(item.cost || item.price || 0) || 0;
-        item.cost = parseFloat((original * PROFIT_MULTIPLIER).toFixed(2));
-        item.currency = "USD";
+    // تحويل الأسعار ×2 (أي 200%)
+    const services = [];
+    for (const country in data) {
+      for (const service in data[country]) {
+        const originalCost = data[country][service].cost;
+        const multipliedCost = (originalCost * 2).toFixed(2); // 200%
+        services.push({
+          country,
+          service,
+          cost: multipliedCost,
+          currency: "USD",
+        });
       }
     }
 
-    // flatten into array for front-end
-const flat = [];
-for (const [serviceKey, countryObj] of Object.entries(data)) {
-  for (const [countryCode, details] of Object.entries(countryObj)) {
-    flat.push({
-      service: serviceKey,
-      country: countryCode,
-      cost: details.cost,
-      currency: details.currency
-    });
+    return services;
+  } catch (error) {
+    console.error("Error fetching services from 5SIM:", error.message);
+    return [];
   }
 }
-res.json(flat);
-  } catch (err) {
-    console.error("Error fetching services:", err);
-    res.status(500).json({ error: "Failed to fetch services." });
-  }
-});
-
-export default router;
