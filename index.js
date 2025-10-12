@@ -13,7 +13,8 @@ import balanceRouter from "./routes/balance.js";
 import authRouter from "./routes/auth.js";
 import walletRouter from "./routes/wallet.js";
 import ordersRouter from "./routes/orders.js";
-import usersRouter from "./routes/users.js"; // ✅ Added missing users route
+import usersRouter from "./routes/users.js"; 
+import transactionsRouter from "./routes/transactions.js"; // ✅ أضف هذا السطر (مهم جداً)
 
 // Initialize
 dotenv.config();
@@ -37,7 +38,7 @@ app.get("/", (req, res) => {
 
 // Register Routes
 app.use("/auth", authRouter);
-app.use("/users", usersRouter); // ✅ Added users route
+app.use("/users", usersRouter);
 app.use("/services", servicesRouter);
 app.use("/countries", countriesRouter);
 app.use("/buy", buyRouter);
@@ -45,6 +46,7 @@ app.use("/status", statusRouter);
 app.use("/balance", balanceRouter);
 app.use("/wallet", walletRouter);
 app.use("/orders", ordersRouter);
+app.use("/transactions", transactionsRouter); // ✅ أضف هذا السطر لتفادي الخطأ 400
 
 // Error Handler
 app.use((err, req, res, next) => {
