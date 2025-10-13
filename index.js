@@ -3,9 +3,8 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import requestIp from "request-ip";
-import connectDB from "./config/mongo.js";
-import authRouter from "./routes/auth.js";
-import servicesRouter from "./routes/services.js";
+import mongoose from "mongoose";
+import axios from "axios";
 
 dotenv.config();
 
@@ -14,65 +13,99 @@ app.use(cors());
 app.use(express.json());
 app.use(requestIp.mw());
 
-// ✅ Health Check
+// ✅ اتصال بقاعدة بيانات MongoDB
+async function connectDB() {
+  const uri = process.env.MONGO_URI;
+  if (!uri) {
+    console.log("⚠️ لا يوجد MONGO_URI في البيئة (Render)");
+    return;
+  }
+
+  try {
+    await mongoose.connect(uri, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log("✅ تم الاتصال بقاعدة البيانات MongoDB بنجاح");
+  } catch (err) {
+    console.error("❌ خطأ في الاتصال بقاعدة البيانات:", err.message);
+  }
+}
+
+// ✅ الصفحة الرئيسية
 app.get("/", (req, res) => {
   res.json({ ok: true, name: "SimVova API", status: "running" });
 });
 
-// ✅ Test routes (to verify everything is working from browser)
+// ✅ اختبار عنوان IP
 app.get("/test/ip", (req, res) => {
-  res.json({ ip: req.clientIp || "unknown" });
+  res.json({ ip: req.clientIp });
 });
 
+// ✅ اختبار MongoDB
 app.get("/test/mongo", async (req, res) => {
   try {
-    const mongoose = await import("mongoose");
-    if (mongoose.connection.readyState === 1) {
-      res.json({ mongo: "connected ✅" });
-    } else {
-      res.json({ mongo: "not connected ❌" });
-    }
+    const state = mongoose.connection.readyState;
+    const connected = state === 1;
+    res.json({
+      connected,
+      message: connected
+        ? "✅ MongoDB متصل بنجاح"
+        : "❌ MongoDB غير متصل حالياً",
+    });
   } catch (err) {
-    res.json({ error: err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
-app.get("/test/routes", (req, res) => {
-  res.json({
-    available_routes: [
-      { route: "/auth/register", method: "POST" },
-      { route: "/auth/login", method: "POST" },
-      { route: "/auth/me", method: "GET (requires token)" },
-      { route: "/services", method: "GET" },
-      { route: "/services/buy", method: "POST" },
-      { route: "/services/update", method: "PUT" },
-      { route: "/services/delete/:id", method: "DELETE" },
-      { route: "/test/ip", method: "GET" },
-      { route: "/test/mongo", method: "GET" },
-    ],
-  });
-});
+// ✅ API لجلب الخدمات من 5SIM مع ربح 200٪
+app.get("/services", async (req, res) => {
+  const API_KEY = process.env.FIVESIM_API_KEY;
+  if (!API_KEY) {
+    return res
+      .status(500)
+      .json({ error: "FIVESIM_API_KEY غير موجود في ملف البيئة" });
+  }
 
-// ✅ Register API Routes
-app.use("/auth", authRouter);
-app.use("/services", servicesRouter);
-
-// ✅ Global Error Handler
-app.use((err, req, res, next) => {
-  console.error("🔥 Server Error:", err.stack);
-  res.status(500).json({ error: "Internal Server Error" });
-});
-
-// ✅ Connect to MongoDB then start server
-const PORT = process.env.PORT || 3000;
-connectDB()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log("✅ MongoDB connected successfully");
+  try {
+    const response = await axios.get("https://5sim.net/v1/guest/products", {
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+      },
     });
-  })
-  .catch((err) => {
-    console.error("❌ Failed to connect to MongoDB:", err.message);
-    process.exit(1);
-  });
+
+    // معالجة البيانات + إضافة 200٪ ربح
+    const data = response.data;
+    const result = {};
+
+    for (const country in data) {
+      result[country] = {};
+      for (const operator in data[country]) {
+        result[country][operator] = Object.entries(data[country][operator]).map(
+          ([service, details]) => ({
+            service,
+            originalPrice: details.cost,
+            priceWithProfit: (details.cost * 3).toFixed(2), // +200%
+            count: details.qty,
+          })
+        );
+      }
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error("❌ خطأ في جلب البيانات من 5SIM:", err.message);
+    res.status(500).json({
+      error: "فشل في الاتصال بـ 5SIM API",
+      details: err.message,
+    });
+  }
+});
+
+// ✅ تشغيل السيرفر
+const PORT = process.env.PORT || 3000;
+connectDB().then(() => {
+  app.listen(PORT, () =>
+    console.log(`🚀 السيرفر يعمل على المنفذ ${PORT} وMongoDB متصل`)
+  );
+});
