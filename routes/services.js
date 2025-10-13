@@ -3,88 +3,31 @@ import axios from "axios";
 
 const router = express.Router();
 const API_KEY = process.env.FIVESIM_API_KEY;
-const PROFIT_MULTIPLIER = parseFloat(process.env.PROFIT_MULTIPLIER || "3");
-
-// currency conversion helper: use exchangerate.host free endpoint
-async function convertToUSD(amount, fromCurrency = "RUB") {
-  try {
-    if (fromCurrency === "USD") return amount;
-    const r = await axios.get(`https://api.exchangerate.host/convert?from=${encodeURIComponent(fromCurrency)}&to=USD&amount=${encodeURIComponent(amount)}`);
-    if (r.data && r.data.result != null) return r.data.result;
-  } catch (e) {
-    console.error("Exchange rate error:", e.message);
-  }
-  // fallback: assume RUB->USD ~ 0.011
-  return fromCurrency === "RUB" ? amount * 0.011 : amount;
-}
-
-function flattenServices(raw) {
-  const arr = [];
-  // try different shapes robustly
-  for (const svcKey of Object.keys(raw || {})) {
-    const countryObj = raw[svcKey];
-    if (!countryObj || typeof countryObj !== "object") continue;
-    for (const countryCode of Object.keys(countryObj)) {
-      const entry = countryObj[countryCode];
-      // entry might be object or array or number
-      if (Array.isArray(entry)) {
-        // array of operators/items
-        for (const op of entry) {
-          const cost = parseFloat(op.cost || op.price || 0);
-          arr.push({ service: svcKey, country: countryCode, operator: op.operator || null, providerPrice: cost, providerCurrency: op.currency || null });
-        }
-      } else if (typeof entry === "object") {
-        // object of operators or a single item
-        for (const opKey of Object.keys(entry)) {
-          const item = entry[opKey];
-          if (typeof item === "object") {
-            const cost = parseFloat(item.cost || item.price || 0);
-            arr.push({ service: svcKey, country: countryCode, operator: opKey, providerPrice: cost, providerCurrency: item.currency || null });
-          } else if (!isNaN(item)) {
-            arr.push({ service: svcKey, country: countryCode, operator: opKey, providerPrice: parseFloat(item), providerCurrency: null });
-          }
-        }
-      } else if (!isNaN(entry)) {
-        arr.push({ service: svcKey, country: countryCode, operator: null, providerPrice: parseFloat(entry), providerCurrency: null });
-      }
-    }
-  }
-  return arr;
-}
 
 router.get("/", async (req, res) => {
   try {
-    if (!API_KEY) return res.status(500).json({ error: "Missing FIVESIM_API_KEY env" });
+    const response = await axios.get("https://5sim.net/v1/guest/prices", {
+      headers: { Authorization: `Bearer ${API_KEY}` },
+    });
 
-    // call 5sim user prices endpoint (requires API key)
-    const endpoint = "https://5sim.net/v1/user/prices";
-    const r = await axios.get(endpoint, { headers: { Authorization: `Bearer ${API_KEY}`, Accept: "application/json", "User-Agent": "SimVova/1.0" } });
+    // تحويل الأسعار من RUB إلى USD وضربها ×3 (ربح 200%)
+    const RUB_TO_USD = 0.011; // تقريبياً
+    const data = response.data;
+    const services = {};
 
-    const raw = r.data;
-    const flat = flattenServices(raw);
-
-    // convert and apply profit
-    const out = [];
-    for (const item of flat) {
-      const providerCurrency = item.providerCurrency || "RUB";
-      const usd = await convertToUSD(item.providerPrice || 0, providerCurrency);
-      const final = Number((usd * PROFIT_MULTIPLIER).toFixed(2));
-      out.push({
-        service: item.service,
-        country: item.country,
-        operator: item.operator,
-        providerPrice: item.providerPrice,
-        providerCurrency,
-        priceUSD: Number(usd.toFixed(4)),
-        sellPriceUSD: final,
-        currency: "USD"
-      });
+    for (const country in data) {
+      services[country] = {};
+      for (const service in data[country]) {
+        const item = data[country][service];
+        const priceUSD = (item.cost * RUB_TO_USD * 3).toFixed(2);
+        services[country][service] = { ...item, cost_usd: priceUSD };
+      }
     }
 
-    res.json({ success: true, services: out });
-  } catch (err) {
-    console.error("services error:", err.response?.data || err.message);
-    res.status(502).json({ error: "Failed to fetch services from 5SIM", details: err.response?.data || err.message });
+    res.json({ success: true, services });
+  } catch (error) {
+    console.error("5SIM API Error:", error.message);
+    res.status(500).json({ error: "Failed to fetch from 5SIM API" });
   }
 });
 
