@@ -1,22 +1,16 @@
 {
   "name": "simvova-server",
   "version": "1.0.0",
-  "description": "SimVova backend (Express + MongoDB) - proxy to 5SIM with wallet and orders",
-  "main": "index.js",
   "type": "module",
+  "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "axios": "^1.7.2",
-    "bcrypt": "^5.1.0",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "jsonwebtoken": "^9.0.0",
-    "mongoose": "^8.0.0"
-  },
-  "engines": {
-    "node": ">=18"
+    "dotenv": "^16.4.5",
+    "cors": "^2.8.5",
+    "axios": "^1.7.2",
+    "request-ip": "^3.3.0"
   }
 }
