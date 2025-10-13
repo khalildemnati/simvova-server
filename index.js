@@ -7,16 +7,30 @@ import authRouter from "./routes/auth.js";
 import servicesRouter from "./routes/services.js";
 
 dotenv.config();
+
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(requestIp.mw());
 
-connectDB();
+// ✅ Health Check
+app.get("/", (req, res) => {
+  res.json({ ok: true, name: "SimVova API", status: "running" });
+});
 
-app.get("/", (req, res) => res.json({ ok: true, name: "SimVova API", status: "running" }));
+// ✅ Register Routes
 app.use("/auth", authRouter);
 app.use("/services", servicesRouter);
 
+// ✅ Connect to MongoDB, then start the server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+connectDB()
+  .then(() => {
+    app.listen(PORT, () =>
+      console.log(`🚀 Server running on port ${PORT} and MongoDB connected`)
+    );
+  })
+  .catch((err) => {
+    console.error("❌ Failed to connect to MongoDB:", err.message);
+    process.exit(1);
+  });
