@@ -1,34 +1,66 @@
+// routes/auth.js
 import express from "express";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
+
 const router = express.Router();
 
-// ✅ اختبار GET (اختياري للتأكد أن المسار يعمل)
-router.get("/", (req, res) => {
-  res.json({ message: "Auth route is active ✅" });
+// ✅ نموذج المستخدم (User Schema)
+const userSchema = new mongoose.Schema({
+  email: { type: String, unique: true, required: true },
+  password: { type: String, required: true },
 });
 
-// ✅ مسار تسجيل الدخول
+const User = mongoose.models.User || mongoose.model("User", userSchema);
+
+// ✅ تسجيل مستخدم جديد
+router.post("/register", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password)
+      return res.status(400).json({ error: "الرجاء إدخال البريد وكلمة المرور" });
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser)
+      return res.status(400).json({ error: "البريد الإلكتروني مسجل مسبقاً" });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = new User({ email, password: hashedPassword });
+    await newUser.save();
+
+    res.json({ message: "تم إنشاء الحساب بنجاح ✅" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ✅ تسجيل الدخول
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
+    if (!email || !password)
+      return res.status(400).json({ error: "يرجى إدخال البريد وكلمة المرور" });
 
-    if (!email || !password) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Email and password required" });
-    }
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ error: "الحساب غير موجود" });
 
-    // محاكاة تحقق من البيانات
-    if (email === "test@example.com" && password === "123456") {
-      return res.json({ success: true, message: "Login successful!" });
-    } else {
-      return res
-        .status(401)
-        .json({ success: false, message: "Invalid credentials" });
-    }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(401).json({ error: "كلمة المرور غير صحيحة" });
+
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || "secret", {
+      expiresIn: "7d",
+    });
+
+    res.json({ message: "تم تسجيل الدخول بنجاح ✅", token });
   } catch (err) {
-    console.error("Login error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ error: err.message });
   }
+});
+
+// ✅ جلب بيانات المستخدم
+router.get("/me", async (req, res) => {
+  res.json({ message: "تم الوصول إلى بيانات المستخدم بنجاح ✅" });
 });
 
 export default router;
