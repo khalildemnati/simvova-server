@@ -1,21 +1,33 @@
 import express from "express";
 const router = express.Router();
 
-// مسار تسجيل الدخول
+// ✅ اختبار GET (اختياري للتأكد أن المسار يعمل)
+router.get("/", (req, res) => {
+  res.json({ message: "Auth route is active ✅" });
+});
+
+// ✅ مسار تسجيل الدخول
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // هنا ضع منطق التحقق من المستخدم (اختياري الآن)
     if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Email and password required" });
     }
 
-    // محاكاة تسجيل دخول ناجح
-    res.json({ success: true, message: "Login successful!" });
+    // محاكاة تحقق من البيانات
+    if (email === "test@example.com" && password === "123456") {
+      return res.json({ success: true, message: "Login successful!" });
+    } else {
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid credentials" });
+    }
   } catch (err) {
     console.error("Login error:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
